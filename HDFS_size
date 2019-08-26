@@ -1,0 +1,91 @@
+package com.test.data.hdfs;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.*;
+
+import java.io.IOException;
+import java.sql.*;
+import java.time.Instant;
+import java.util.Properties;
+
+public class HdfsDetailsHandler {
+	static String namenodeurl;
+	static String parentPath;
+	static int lavel;
+	
+
+	public static void main(String args[]) throws IOException, SQLException,
+			ClassNotFoundException {
+		if (args.length != 0) {
+			namenodeurl = args[0];
+			parentPath = args[1];
+			lavel =Integer.parseInt(args[2]);
+			
+		}
+		
+		Configuration conf = new Configuration();
+		conf.set("fs.defaultFS", namenodeurl);
+		Path inputPath = new Path(parentPath);
+		FileSystem fs = FileSystem.get(conf);
+		FileStatus[] parentStatus = fs.listStatus(inputPath);
+		System.out.println("--------------------------------------");
+		
+		System.out.println("parentStatus---"+parentStatus);
+		System.out.print("directoryname: " + parentPath);
+		
+		
+		ContentSummary hdfsDetails = fs.getContentSummary(inputPath);
+		//double g = (((hdfsDetails.getSpaceConsumed() / 1024.0) / 1024.0) / 1024.0);
+		double g = hdfsDetails.getSpaceConsumed() ;
+		System.out.print("\tdirectorysize: " + g);
+		System.out.print("\tfilecount: " + hdfsDetails.getFileCount() + "\n");
+		System.out.println("--------------------------------------");
+		if(lavel>0)
+		getContent(fs, parentStatus);
+	}
+
+	/**
+	 *
+	 * @param fs
+	 * @param parentStatus
+	 * @throws IOException
+	 */
+	public static void getContent(FileSystem fs, FileStatus[] parentStatus)
+			throws IOException, SQLException {
+		
+		for (int i = 0; i < parentStatus.length; i++) {
+			FileStatus fileStatus = parentStatus[i];
+			//System.out.println("checking fileStatus="+fileStatus+"  fileStatusLength="+parentStatus.length);
+			System.out.println("parentdirpath length ="+parentStatus.length);
+			/*if(fileStatus.isFile()){
+				System.out.println("fileName: "+ fileStatus.getPath().toString().replace(namenodeurl, ""));
+				ContentSummary hdfsDetails = fs.getContentSummary(fileStatus.getPath());
+                double g = hdfsDetails.getSpaceConsumed();
+				
+				System.out.println("filesize: " + g);
+			}*/
+			if (fileStatus.isDirectory()) {
+				System.out.println("directoryname: "+ fileStatus.getPath().toString().replace(namenodeurl, ""));//abc/a1
+				String dir=fileStatus.getPath().toString().replace(namenodeurl, "");
+				String dirlvl[]=dir.split("/");
+				int dirlvlcont=dirlvl.length-1;
+				ContentSummary hdfsDetails = fs.getContentSummary(fileStatus.getPath());
+				
+				//double g = mapBytesTOGBs(hdfsDetails.getLength());
+				double g = hdfsDetails.getSpaceConsumed();
+				
+				System.out.println("directorysize: " + g);
+				
+				FileStatus[] subStatus = fs.listStatus(fileStatus.getPath());
+				//System.out.println("checking subStatus= "+fileStatus.getPath()+"  subStatusLength="+subStatus.length);
+				//System.out.println("Inserted Record to DB::: "+ fileStatus.getPath().toString().replace(namenodeurl, ""));
+				if(dirlvlcont<=lavel)
+				getContent(fs, subStatus);
+			}
+		}
+	}
+
+	public static double mapBytesTOGBs(long size) {
+		return (((size / 1024.0) / 1024.0) / 1024.0);
+	}
+}
